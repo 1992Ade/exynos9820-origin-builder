@@ -46,20 +46,20 @@ On top of OriginSU, every build enables:
 
 LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder produces one zip per device — **flash only the one matching your codename**:
 
-| Device | Codename | Model |
-|---|---|---|
-| Galaxy S10e | `beyond0lte` | SM-G970F |
-| Galaxy S10 | `beyond1lte` | SM-G973F |
-| Galaxy S10+ | `beyond2lte` | SM-G975F |
-| Galaxy S10 5G | `beyondx` | SM-G977B |
-| Galaxy Note10 | `d1` | SM-N970F |
-| Galaxy Note10 5G | `d1x` | SM-N971 |
-| Galaxy Note10+ | `d2s` | SM-N975F |
-| Galaxy Note10+ 5G | `d2x` | SM-N976B |
-| Galaxy F62 | `f62` | SM-E625F |
+| Device | Codename | Model | Status |
+|---|---|---|---|
+| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested by the maintainer** |
+| Galaxy S10e | `beyond0lte` | SM-G970F | 🧪 Please test |
+| Galaxy S10 | `beyond1lte` | SM-G973F | 🧪 Please test |
+| Galaxy S10 5G | `beyondx` | SM-G977B | 🧪 Please test |
+| Galaxy Note10 | `d1` | SM-N970F | 🧪 Please test |
+| Galaxy Note10 5G | `d1x` | SM-N971 | 🧪 Please test |
+| Galaxy Note10+ | `d2s` | SM-N975F | 🧪 Please test |
+| Galaxy Note10+ 5G | `d2x` | SM-N976B | 🧪 Please test |
+| Galaxy F62 | `f62` | SM-E625F | 🧪 Please test |
 
-> ### 🧪 Community rebuild — please test
-> These builds are produced automatically and swap the kernel's root solution; they are **not all verified on real hardware**. Back up your stock `boot`/`vbmeta` first, and if a device doesn't boot, re-run the workflow with **`hook_mode = manual`** (root only, no SuSFS). Please open an issue reporting which devices boot.
+> ### 🧪 Community rebuild
+> **Galaxy S10+ (`beyond2lte`) is tested and confirmed working.** The other devices are built automatically from the same sources but **not yet verified on real hardware**. Back up your stock `boot`/`vbmeta` first, and if a device doesn't boot, re-run the workflow with **`hook_mode = manual`** (root only, no SuSFS). Please open an issue reporting which devices boot.
 
 **Requirement:** a ROM that runs the LeDrew2017 Exynos 9820 4.14 kernel (e.g. Project Infinity-X and other AOSP-based ROMs for these devices). Stock One UI is **not** supported.
 
