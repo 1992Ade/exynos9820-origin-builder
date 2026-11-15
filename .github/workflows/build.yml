@@ -344,10 +344,13 @@ jobs:
                      d=1 } { print }' fs/namespace.c > fs/namespace.c.tmp && mv fs/namespace.c.tmp fs/namespace.c
               echo "-- susfs: re-added namespace.c susfs_def include + CL_COPY_MNT_NS block"
             fi
-            if ! grep -q 'copy_flags |= CL_COPY_MNT_NS' fs/namespace.c; then
-              sed -i 's/\(copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;\)/\1\n#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT\n\tcopy_flags |= CL_COPY_MNT_NS;\n#endif/' fs/namespace.c
-              echo "-- susfs: re-added copy_flags |= CL_COPY_MNT_NS in copy_mnt_ns"
-            fi
+            # The patch's copy_mnt_ns hunk mis-applies via --fuzz on the runner's GNU patch: the
+            # `copy_flags |= CL_COPY_MNT_NS` block lands INSIDE exact_copy_from_user's signature
+            # (undeclared 'copy_flags' build error). Remove any such block wherever it landed,
+            # then insert it correctly in copy_mnt_ns (right after the CL_SHARED_TO_SLAVE line).
+            perl -0pi -e 's/[ \t]*#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT[ \t]*\n[ \t]*copy_flags \|= CL_COPY_MNT_NS;[ \t]*\n[ \t]*#endif[ \t]*\n//g' fs/namespace.c
+            sed -i 's/\(copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;\)/\1\n#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT\n\tcopy_flags |= CL_COPY_MNT_NS;\n#endif/' fs/namespace.c
+            echo "-- susfs: fixed copy_flags |= CL_COPY_MNT_NS placement in copy_mnt_ns"
             rm -f fs/namespace.c.rej
           fi
           # Debug: dump the copy_mnt_ns region + any leftover .rej so namespace.c build
