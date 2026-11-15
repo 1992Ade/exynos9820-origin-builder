@@ -17,13 +17,25 @@ The upstream kernel ships with **KernelSU-Next**. This builder **replaces it wit
 
 ## 💙 Prefer the original? Use LeDrew2017's FreeRunnerKernel
 
-This project is **only an OriginSU rebuild**. All the real kernel work is **[LeDrew2017](https://github.com/LeDrew2017)'s**. If you'd rather run the original kernel with its own root solution (**KernelSU-Next**), get it directly from the developer — it is the reference build and is actively maintained:
+This project is **only an OriginSU rebuild**. All the real kernel work is **[LeDrew2017](https://github.com/LeDrew2017)'s**. If you'd rather run the original kernel with its own root solution (**KernelSU-Next / SukiSU**), get it directly from the developer — it is the reference build and is actively maintained:
 
 - **Kernel source:** [LeDrew2017/android_kernel_samsung_exynos9820](https://github.com/LeDrew2017/android_kernel_samsung_exynos9820)
 - **Build scripts:** [LeDrew2017/FreeRunnerKernel](https://github.com/LeDrew2017/FreeRunnerKernel)
 - **A ROM that ships it (Galaxy S10+):** [Project Infinity-X — beyond2lte](https://projectinfinity-x.com/downloads/beyond2lte)
 
 Please support the original developer first. 🙏
+
+### Versions at a glance
+
+| | FreeRunner (original) | This builder |
+|---|---|---|
+| **Root** | KernelSU-Next / SukiSU | **OriginSU** `v4.3.0` |
+| **SuSFS** | `v1.5.3` (in-tree) | **`v2.4.0`** (modern, patched in) |
+| **Kernel base** | `fourteen` / `v3.0` (Android 14) | `testing-fifteen` (Android 15) |
+| **Extra features** | — | **Baseband Guard · NoMount · Droidspaces** |
+| **Kernel** | Linux 4.14 (Exynos 9820/9825) | same |
+
+The point of this rebuild is the **modern stack**: OriginSU + SuSFS v2.4.0 + the three extra features. For plain KernelSU-Next with SuSFS v1.5.3, FreeRunner already does that — use it directly.
 
 ---
 
@@ -33,7 +45,7 @@ On top of OriginSU, every build enables:
 
 | Feature | Upstream | What it does | Kernel config |
 |---|---|---|---|
-| **SuSFS** | [simonpunk](https://gitlab.com/simonpunk/susfs4ksu) (4.14 patch by [JackA1ltman](https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd)) | Hides root/mounts from detection (`susfs` hook mode) | `CONFIG_KSU_SUSFS_*` |
+| **SuSFS `v2.4.0`** | [simonpunk](https://gitlab.com/simonpunk/susfs4ksu) (4.14 patch by [JackA1ltman](https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd)) | Modern root/mount hiding, required by OriginSU v4.3 (`susfs` hook mode) | `CONFIG_KSU_SUSFS_*` |
 | **Baseband Guard** | [vc-teahouse](https://github.com/vc-teahouse/Baseband-guard) | LSM that blocks writes to the modem/baseband partitions | `CONFIG_BBG=y` |
 | **NoMount** | [maxsteeel](https://github.com/maxsteeel/nomount) | Prevents unwanted mounts used for root detection | `CONFIG_NOMOUNT=y` |
 | **Droidspaces** | [ravindu644](https://github.com/ravindu644/Droidspaces-OSS) | Namespace/cgroup isolation to run isolated Android/Linux spaces | `CONFIG_NAMESPACES`, `CONFIG_USER_NS`, cgroups, netfilter… |
@@ -110,7 +122,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 
 1. **check** — reads the latest stable OriginSU release, requires its **manager APK**, and pins JackA1ltman's SuSFS patch commit for the run. Builds only if there's a new `originsu-<tag>`.
 2. **build** (one job per device, `fail-fast: false`)
-   - Clones the chosen `android_kernel_samsung_exynos9820` branch (default `testing-fourteen-v3.0`, the FreeRunner branch that already ships SuSFS + KernelSU-Next) and downloads **Neutron Clang**. On that branch the SuSFS patch and hook scripts are skipped — the tree's own SuSFS is used and only the root solution is swapped to OriginSU. A clean branch (e.g. `testing-fifteen`) is patched with SuSFS instead.
+   - Clones the chosen `android_kernel_samsung_exynos9820` branch (default `testing-fifteen`, a clean Android 15 tree) and downloads **Neutron Clang**. On a clean branch the builder patches in **modern SuSFS v2.4.0** (JackA1ltman's 4.14 patch) + the inline hooks. On a branch that already ships SuSFS (the `fourteen` branches, SuSFS v1.5.3) that patch is skipped and the tree's own SuSFS is used — but OriginSU v4.3 needs SuSFS v2.x, so the `fifteen` path is the supported one.
    - Generates the config from `exynos9820-<device>_defconfig`.
    - **Replaces KernelSU-Next with OriginSU** (`rm -rf KernelSU drivers/kernelsu`, then OriginSU's `setup.sh` + small 4.14 compat fixes).
    - Adds **SuSFS** (JackA1ltman 4.14 patch + inline hooks; skipped if the branch already ships SuSFS) or, in `manual` mode, the manual hooks only.
@@ -123,7 +135,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 | Input | Default | Description |
 |---|---|---|
 | `originsu_ref` | *(latest release)* | OriginSU tag to build |
-| `kernel_branch` | `testing-fourteen-v3.0` | Branch of `android_kernel_samsung_exynos9820`. The `fourteen` branches already ship SuSFS (recommended, what FreeRunner uses); a clean branch like `testing-fifteen` gets SuSFS patched in |
+| `kernel_branch` | `testing-fifteen` | Branch of `android_kernel_samsung_exynos9820`. `testing-fifteen` (Android 15, clean) gets modern **SuSFS v2.4.0** patched in — the supported path. The `fourteen` branches ship an older SuSFS v1.5.3 that OriginSU v4.3 cannot use |
 | `hook_mode` | `susfs` | `susfs` = root + SuSFS; `manual` = root only (fallback) |
 | `kpm` | `false` | Enable `CONFIG_KPM` |
 | `publish` | `true` | Publish a GitHub Release |
