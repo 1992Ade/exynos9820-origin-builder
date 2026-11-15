@@ -271,7 +271,11 @@ jobs:
           # 5b) SuSFS sus_mount: 2 of the susfs_patch_to_4.14 hunks reject on Samsung's
           #     fs/namespace.c (divergent context), leaving CL_COPY_MNT_NS / DEFAULT_KSU_MNT_ID /
           #     susfs_is_sdcard_android_data_not_decrypted undeclared. Re-apply them by anchor.
-          if [ "$HOOK_MODE" = "susfs" ] && [ -f fs/namespace.c ]; then
+          # Only touch namespace.c when it is in the exact broken state: it *uses* the SuSFS
+          # sus_mount symbol but is missing the definitions (rejected hunks). This way a tree
+          # that already ships a correct SuSFS (e.g. testing-fourteen-v3.0) is never altered.
+          if [ "$HOOK_MODE" = "susfs" ] && [ -f fs/namespace.c ] && \
+             grep -q 'susfs_is_sdcard_android_data_not_decrypted' fs/namespace.c; then
             # guard on the #define specifically: the applied hunks already *use* CL_COPY_MNT_NS,
             # so grepping the bare name would wrongly skip adding its definition.
             if ! grep -q '#define CL_COPY_MNT_NS' fs/namespace.c; then
@@ -292,6 +296,14 @@ jobs:
               echo "-- susfs: re-added copy_flags |= CL_COPY_MNT_NS in copy_mnt_ns"
             fi
             rm -f fs/namespace.c.rej
+          fi
+          # Debug: dump the copy_mnt_ns region + any leftover .rej so namespace.c build
+          # errors are diagnosable straight from the log.
+          if [ "$HOOK_MODE" = "susfs" ] && [ -f fs/namespace.c ]; then
+            echo "::group::DEBUG fs/namespace.c copy_mnt_ns region"
+            grep -n -A40 'copy_mnt_ns(unsigned long flags' fs/namespace.c || true
+            echo "--- leftover rejects ---"; ls -1 fs/*.rej 2>/dev/null || echo "(none)"
+            echo "::endgroup::"
           fi
 
           # 6) Report the hooks OriginSU looks for (non-fatal: this tree's KSU-Next hooks
