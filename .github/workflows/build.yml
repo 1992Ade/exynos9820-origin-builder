@@ -236,14 +236,17 @@ jobs:
             # as-is: NO patch and NO hook script (the tree already carries both) — this is the
             # reliable, FreeRunner-aligned path. Only a clean branch gets patched + hooked.
             if [ -f fs/susfs.c ]; then
-              echo "-- Tree already ships SuSFS (dev-integrated) — using it as-is"
-              NEED_HOOKS=0
+              echo "-- Tree already ships SuSFS (dev-integrated) — using it, no patch"
             else
               curl -LSs --fail --retry 3 "$NONGKI/Patch/susfs_patch_to_${KERNEL_VERSION}.patch" | patch -p1 -s --fuzz=5 || true
               [ -f fs/susfs.c ] || { echo "::error::SuSFS not present after patch (fs/susfs.c missing) — try hook_mode=manual"; exit 1; }
-              curl -LSs --fail --retry 3 "$NONGKI/susfs_inline_hook_patches.sh" -o /tmp/hooks.sh
-              NEED_HOOKS=1
             fi
+            # Always run the inline hook script. It is guarded per file (it SKIPS any file that
+            # already carries a ksu_handle hook — the dev's 4 on the fourteen branches) and only
+            # adds the ones OriginSU still requires (sys_read / setresuid / reboot). Without this,
+            # OriginSU's inline_hook_check.mk fails ("integrate OriginSU correctly").
+            curl -LSs --fail --retry 3 "$NONGKI/susfs_inline_hook_patches.sh" -o /tmp/hooks.sh
+            NEED_HOOKS=1
             cat >> "$FINAL_DEFCONFIG" <<'EOF'
           CONFIG_KSU_SUSFS=y
           # CONFIG_KSU_MANUAL_HOOK is not set
