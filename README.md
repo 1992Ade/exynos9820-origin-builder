@@ -17,7 +17,7 @@ The upstream kernel ships with **KernelSU-Next**. This builder **replaces it wit
 
 ## 💙 Prefer the original? Use LeDrew2017's FreeRunnerKernel
 
-This project is **only an OriginSU rebuild**. All the real kernel work is **[LeDrew2017](https://github.com/LeDrew2017)'s**. If you'd rather run the original kernel with its own root solution (**KernelSU-Next / SukiSU**), get it directly from the developer — it is the reference build and is actively maintained:
+This project is **only an OriginSU rebuild**. All the real kernel work is **[LeDrew2017](https://github.com/LeDrew2017)'s**. If you'd rather run the original kernel with its own root solution (**KernelSU-Next**), get it directly from the developer — it is the reference build and is actively maintained:
 
 - **Kernel source:** [LeDrew2017/android_kernel_samsung_exynos9820](https://github.com/LeDrew2017/android_kernel_samsung_exynos9820)
 - **Build scripts:** [LeDrew2017/FreeRunnerKernel](https://github.com/LeDrew2017/FreeRunnerKernel)
