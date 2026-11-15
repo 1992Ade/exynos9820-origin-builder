@@ -22,6 +22,11 @@ on:
         description: "android_kernel_samsung_exynos9820 branch"
         required: false
         default: "testing-fifteen"
+      device:
+        description: "Device to build (all = every device)"
+        type: choice
+        options: [all, beyond0lte, beyond1lte, beyond2lte, beyondx, d1, d1x, d2s, d2x, f62]
+        default: all
       hook_mode:
         description: "susfs = root + SuSFS hiding (patched in); manual = root only, no SuSFS"
         type: choice
@@ -66,6 +71,7 @@ jobs:
       tag: ${{ steps.ver.outputs.tag }}
       build: ${{ steps.ver.outputs.build }}
       branch: ${{ steps.ver.outputs.branch }}
+      devices: ${{ steps.ver.outputs.devices }}
       nongki_sha: ${{ steps.ver.outputs.nongki_sha }}
     steps:
       - name: Compare OriginSU latest release with our releases
@@ -75,6 +81,14 @@ jobs:
         run: |
           BRANCH="${{ inputs.kernel_branch }}"; BRANCH="${BRANCH:-testing-fifteen}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+          # Device matrix: one device when picked, otherwise all of them (schedule = all)
+          DEV="${{ inputs.device }}"
+          if [ -z "$DEV" ] || [ "$DEV" = "all" ]; then
+            echo 'devices=["beyond0lte","beyond1lte","beyond2lte","beyondx","d1","d1x","d2s","d2x","f62"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "devices=[\"$DEV\"]" >> "$GITHUB_OUTPUT"
+          fi
 
           TAG="${{ inputs.originsu_ref }}"
           if [ -z "$TAG" ]; then
@@ -113,10 +127,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Exynos 9820/9825 devices with an exynos9820-<device>_defconfig in the tree.
+        # Built from the check job: one device when the 'device' input is set, else all of them.
         # beyond0lte=S10e, beyond1lte=S10, beyond2lte=S10+, beyondx=S10 5G,
         # d1=Note10, d1x=Note10 5G, d2s=Note10+, d2x=Note10+ 5G, f62=Galaxy F62.
-        device: [beyond0lte, beyond1lte, beyond2lte, beyondx, d1, d1x, d2s, d2x, f62]
+        device: ${{ fromJSON(needs.check.outputs.devices) }}
     env:
       DEVICE: ${{ matrix.device }}
       ORIGINSU_TAG: ${{ needs.check.outputs.tag }}
