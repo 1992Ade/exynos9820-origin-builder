@@ -68,7 +68,10 @@ env:
   AK3_REPO: https://github.com/LeDrew2017/Anykernel
   KBUILD_BUILD_USER: builder
   KBUILD_BUILD_HOST: github-actions
-  MAKE_ARGS: ARCH=arm64 LLVM=1 LLVM_IAS=1 LD=ld.lld CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+  # LLVM=1 (clang + lld) but NO LLVM_IAS: on this 4.14 Exynos tree the hand-written .S files use
+  # GNU-as syntax, so they are assembled by aarch64-linux-gnu-as (as the FreeRunner dev builds).
+  # Clang's integrated assembler (LLVM_IAS=1) miscompiles them -> the kernel builds but bootloops.
+  MAKE_ARGS: ARCH=arm64 LLVM=1 LD=ld.lld CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_COMPAT=arm-linux-gnueabi- CROSS_COMPILE_ARM32=arm-linux-gnueabi-
 
 jobs:
   # ------------------------------------------------------------------
@@ -169,18 +172,18 @@ jobs:
           D="$KERNEL_DIR/arch/arm64/configs/exynos9820-${DEVICE}_defconfig"
           [ -f "$D" ] || { echo "::error::$D missing on $KERNEL_BRANCH — skipping $DEVICE"; exit 1; }
 
-      - name: Download AOSP Clang
+      - name: Download Neutron Clang
         run: |
-          # Google's official AOSP Clang (what the FreeRunner dev uses, and what boots on dipper).
-          # Stock kernels built with Neutron Clang bootloop on this Exynos tree, so use AOSP's.
-          # CLANG_TRIPLE (in MAKE_ARGS) is required for the 4.14 prepare-compiler-check to pass.
-          CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-release/clang-r547379.tar.gz"
-          mkdir -p "$HOME/clang"
-          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.gz "$CLANG_URL"
-          tar -C "$HOME/clang" -xzf /tmp/clang.tar.gz
-          rm -f /tmp/clang.tar.gz
-          echo "$HOME/clang/bin" >> "$GITHUB_PATH"
-          echo "TOOLCHAIN=$("$HOME/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
+          TC_URL="$(curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*"' | head -n1 | cut -d '"' -f4)"
+          [ -n "$TC_URL" ] || { echo "Toolchain URL not found"; exit 1; }
+          mkdir -p "$KERNEL_DIR/clang"
+          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.zst "$TC_URL"
+          tar --zstd -C "$KERNEL_DIR/clang" -xf /tmp/clang.tar.zst
+          rm -f /tmp/clang.tar.zst
+          echo "$PWD/$KERNEL_DIR/clang/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN=$("$KERNEL_DIR/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
 
       - name: Generate kernel config
         working-directory: ${{ env.KERNEL_DIR }}
