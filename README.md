@@ -110,7 +110,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 
 1. **check** — reads the latest stable OriginSU release, requires its **manager APK**, and pins JackA1ltman's SuSFS patch commit for the run. Builds only if there's a new `originsu-<tag>`.
 2. **build** (one job per device, `fail-fast: false`)
-   - Clones the chosen `android_kernel_samsung_exynos9820` branch (default `testing-fifteen`) and downloads **Neutron Clang**.
+   - Clones the chosen `android_kernel_samsung_exynos9820` branch (default `testing-fourteen-v3.0`, the FreeRunner branch that already ships SuSFS + KernelSU-Next) and downloads **Neutron Clang**. On that branch the SuSFS patch and hook scripts are skipped — the tree's own SuSFS is used and only the root solution is swapped to OriginSU. A clean branch (e.g. `testing-fifteen`) is patched with SuSFS instead.
    - Generates the config from `exynos9820-<device>_defconfig`.
    - **Replaces KernelSU-Next with OriginSU** (`rm -rf KernelSU drivers/kernelsu`, then OriginSU's `setup.sh` + small 4.14 compat fixes).
    - Adds **SuSFS** (JackA1ltman 4.14 patch + inline hooks; skipped if the branch already ships SuSFS) or, in `manual` mode, the manual hooks only.
@@ -123,7 +123,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 | Input | Default | Description |
 |---|---|---|
 | `originsu_ref` | *(latest release)* | OriginSU tag to build |
-| `kernel_branch` | `testing-fifteen` | Branch of `android_kernel_samsung_exynos9820` (e.g. `testing-fourteen-v3.0`, which already ships SuSFS) |
+| `kernel_branch` | `testing-fourteen-v3.0` | Branch of `android_kernel_samsung_exynos9820`. The `fourteen` branches already ship SuSFS (recommended, what FreeRunner uses); a clean branch like `testing-fifteen` gets SuSFS patched in |
 | `hook_mode` | `susfs` | `susfs` = root + SuSFS; `manual` = root only (fallback) |
 | `kpm` | `false` | Enable `CONFIG_KPM` |
 | `publish` | `true` | Publish a GitHub Release |
