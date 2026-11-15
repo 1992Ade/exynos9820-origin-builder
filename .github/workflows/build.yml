@@ -271,6 +271,16 @@ jobs:
           fi
           sed -i 's/^[[:space:]]*CONFIG_/CONFIG_/; s/^[[:space:]]*# CONFIG_/# CONFIG_/' "$FINAL_DEFCONFIG"
 
+          # 3c) OriginSU v4.3+ includes <linux/susfs_def.h> under CONFIG_KSU_SUSFS, but this
+          #     tree's bundled SuSFS predates that split-out header. Provide it from susfs4ksu
+          #     (matching kernel version) so OriginSU's sucompat.h compiles. The tree's own SuSFS
+          #     does not reference this header, so it only satisfies OriginSU.
+          if [ "$HOOK_MODE" = "susfs" ] && [ ! -f include/linux/susfs_def.h ]; then
+            curl -LSs --fail --retry 3 "https://gitlab.com/simonpunk/susfs4ksu/-/raw/kernel-${KERNEL_VERSION}/kernel_patches/include/linux/susfs_def.h" -o include/linux/susfs_def.h \
+              && echo "-- added include/linux/susfs_def.h from susfs4ksu (kernel-${KERNEL_VERSION})" \
+              || echo "::warning::could not fetch susfs_def.h — OriginSU may fail to find it"
+          fi
+
           # 4a) The dev's KSU-Next tree ships an OLD-style read hook (ksu_vfs_read_hook /
           #     ksu_handle_vfs_read in fs/read_write.c) that OriginSU v4.3+ rejects as
           #     "incompatible hook". Strip that block so read_write.c is clean; the hook script
