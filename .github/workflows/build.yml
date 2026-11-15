@@ -177,8 +177,11 @@ jobs:
         run: |
           sed -i "s/printf '%s' -dirty/:/g" scripts/setlocalversion 2>/dev/null || true
           sed -i 's/CONFIG_IKHEADERS=y/# CONFIG_IKHEADERS is not set/g' "$FINAL_DEFCONFIG"
-          # Loosen recent-Clang warnings that break old trees
-          sed -i 's/-Wno-format-security/-Wno-format-security -Wno-declaration-after-statement -Wno-implicit-int -Wno-enum-conversion -Wno-misleading-indentation -Wno-unsequenced -Wno-implicit-function-declaration -Wno-implicit-enum-enum-cast/g' Makefile 2>/dev/null || true
+          # Loosen recent-Clang warnings that break old trees (incl. the -Werror const-init
+          # ones that fail kernel/params.c on this tree)
+          sed -i 's/-Wno-format-security/-Wno-format-security -Wno-declaration-after-statement -Wno-implicit-int -Wno-enum-conversion -Wno-misleading-indentation -Wno-unsequenced -Wno-implicit-function-declaration -Wno-implicit-enum-enum-cast -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe/g' Makefile 2>/dev/null || true
+          # Belt-and-braces: also append them to KBUILD_CFLAGS so they apply even if the anchor moves
+          sed -i '/^export KBUILD_CFLAGS/i KBUILD_CFLAGS += -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe' Makefile 2>/dev/null || true
 
       - name: Integrate OriginSU (replacing KernelSU-Next)
         working-directory: ${{ env.KERNEL_DIR }}
@@ -250,6 +253,32 @@ jobs:
 
           # 5) 4.14 fix: fs/stat.c flag arg name
           sed -i 's/ksu_handle_stat(&dfd, &fname, &flag);/ksu_handle_stat(\&dfd, \&fname, \&flags);/g' fs/stat.c 2>/dev/null || true
+
+          # 5b) SuSFS sus_mount: 2 of the susfs_patch_to_4.14 hunks reject on Samsung's
+          #     fs/namespace.c (divergent context), leaving CL_COPY_MNT_NS / DEFAULT_KSU_MNT_ID /
+          #     susfs_is_sdcard_android_data_not_decrypted undeclared. Re-apply them by anchor.
+          if [ "$HOOK_MODE" = "susfs" ] && [ -f fs/namespace.c ]; then
+            # guard on the #define specifically: the applied hunks already *use* CL_COPY_MNT_NS,
+            # so grepping the bare name would wrongly skip adding its definition.
+            if ! grep -q '#define CL_COPY_MNT_NS' fs/namespace.c; then
+              awk '/#include "pnode.h"/ && !d {
+                     print "#ifdef CONFIG_KSU_SUSFS";
+                     print "#include <linux/susfs_def.h>";
+                     print "#endif";
+                     print "#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT";
+                     print "extern bool susfs_is_current_ksu_domain(void);";
+                     print "extern struct static_key_true susfs_is_sdcard_android_data_not_decrypted;";
+                     print "#define CL_COPY_MNT_NS BIT(25)";
+                     print "#endif";
+                     d=1 } { print }' fs/namespace.c > fs/namespace.c.tmp && mv fs/namespace.c.tmp fs/namespace.c
+              echo "-- susfs: re-added namespace.c susfs_def include + CL_COPY_MNT_NS block"
+            fi
+            if ! grep -q 'copy_flags |= CL_COPY_MNT_NS' fs/namespace.c; then
+              sed -i 's/\(copy_flags |= CL_SHARED_TO_SLAVE | CL_UNPRIVILEGED;\)/\1\n#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT\n\tcopy_flags |= CL_COPY_MNT_NS;\n#endif/' fs/namespace.c
+              echo "-- susfs: re-added copy_flags |= CL_COPY_MNT_NS in copy_mnt_ns"
+            fi
+            rm -f fs/namespace.c.rej
+          fi
 
           # 6) Report the hooks OriginSU looks for (non-fatal: this tree's KSU-Next hooks
           #    differ, so missing ones are flagged and the OriginSU build decides)
