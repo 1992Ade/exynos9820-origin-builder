@@ -32,6 +32,10 @@ on:
         type: choice
         options: [susfs, manual]
         default: susfs
+      extra_features:
+        description: "Add Baseband Guard + NoMount + Droidspaces (set false to build OriginSU only, for boot bisection)"
+        type: boolean
+        default: true
       kpm:
         description: "Enable CONFIG_KPM"
         type: boolean
@@ -444,7 +448,12 @@ jobs:
         working-directory: ${{ env.KERNEL_DIR }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXTRA_FEATURES: ${{ github.event_name == 'workflow_dispatch' && inputs.extra_features || 'true' }}
         run: |
+          if [ "$EXTRA_FEATURES" = "false" ]; then
+            echo "-- extra_features=false: building OriginSU only (no Baseband Guard / NoMount / Droidspaces)"
+            exit 0
+          fi
           ########## 1) Baseband Guard (vc-teahouse) ##########
           echo "== Baseband Guard =="
           curl -LSs --fail --retry 3 -H "Authorization: Bearer $GITHUB_TOKEN" \
