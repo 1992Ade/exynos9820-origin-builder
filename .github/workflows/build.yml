@@ -271,13 +271,19 @@ jobs:
           fi
           sed -i 's/^[[:space:]]*CONFIG_/CONFIG_/; s/^[[:space:]]*# CONFIG_/# CONFIG_/' "$FINAL_DEFCONFIG"
 
-          # 4) Apply the hooks into the kernel sources. The script is guarded per file (it skips
-          #    files that already carry a ksu_handle hook), so it only fills the gaps OriginSU
-          #    needs. BUT OriginSU provides its own sys_read hook on Non-GKI 4.14 and rejects the
-          #    script's ksu_vfs_read_hook in fs/read_write.c as "incompatible" — so drop
-          #    read_write.c from the script's patch list and let OriginSU handle read itself.
+          # 4a) The dev's KSU-Next tree ships an OLD-style read hook (ksu_vfs_read_hook /
+          #     ksu_handle_vfs_read in fs/read_write.c) that OriginSU v4.3+ rejects as
+          #     "incompatible hook". Strip that block so read_write.c is clean; the hook script
+          #     below then adds OriginSU's compatible ksu_handle_sys_read instead.
+          if [ -f fs/read_write.c ] && grep -q 'ksu_vfs_read_hook' fs/read_write.c; then
+            perl -0pi -e 's/[ \t]*#ifdef CONFIG_KSU[ \t]*\n(?:(?!#endif).)*?ksu_vfs_read_hook(?:(?!#endif).)*?\n[ \t]*#endif[ \t]*\n//gs' fs/read_write.c
+            echo "-- stripped legacy ksu_vfs_read_hook from fs/read_write.c (OriginSU adds its own)"
+          fi
+
+          # 4b) Apply the hook script. It is guarded per file (skips files that already carry a
+          #     ksu_handle hook — the dev's exec/open/stat/input), so it only adds the hooks
+          #     OriginSU still needs: sys_read (now that we cleaned it), setresuid and reboot.
           if [ "${NEED_HOOKS:-0}" = 1 ] && [ -f /tmp/hooks.sh ]; then
-            sed -i '/^[[:space:]]*fs\/read_write\.c[[:space:]]*$/d' /tmp/hooks.sh
             bash /tmp/hooks.sh || echo "::warning::hook script returned non-zero (some hooks may already be in-tree)"
           else
             echo "-- Using the tree's existing hooks (no hook script run)"
