@@ -286,6 +286,15 @@ jobs:
             perl -0pi -e 's/[ \t]*#ifdef CONFIG_KSU_SAFEMODE[ \t]*\n(?:(?!#endif).)*?ksu_input_hook(?:(?!#endif).)*?\n[ \t]*#endif[ \t]*\n//gs' drivers/input/input.c
             echo "-- stripped legacy ksu_input_hook from drivers/input/input.c (kept the compatible one)"
           fi
+          # exec.c is different: the legacy bool (ksu_execveat_hook) GATES the compatible
+          # ksu_handle_execveat call in the same block, and OriginSU requires that call. So just
+          # neutralize the bool (drop its extern + the `if (ksu_execveat_hook)` gate) and keep
+          # the handler call.
+          if [ -f fs/exec.c ] && grep -qw 'ksu_execveat_hook' fs/exec.c; then
+            sed -i '/extern bool ksu_execveat_hook __read_mostly;/d' fs/exec.c
+            sed -i 's/if (unlikely(ksu_execveat_hook))/if (unlikely(1))/g' fs/exec.c
+            echo "-- neutralized legacy ksu_execveat_hook in fs/exec.c (kept ksu_handle_execveat)"
+          fi
 
           # 4b) Apply the hook script. It is guarded per file (skips files that already carry a
           #     ksu_handle hook — the dev's exec/open/stat/input), so it only adds the hooks
