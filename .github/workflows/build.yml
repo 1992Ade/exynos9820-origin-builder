@@ -19,9 +19,9 @@ on:
         required: false
         default: ""
       kernel_branch:
-        description: "android_kernel_samsung_exynos9820 branch (fourteen branches already ship SuSFS)"
+        description: "android_kernel_samsung_exynos9820 branch (testing-fifteen = clean tree, SuSFS v2.4.0 patched in)"
         required: false
-        default: "testing-fourteen-v3.0"
+        default: "testing-fifteen"
       device:
         description: "Device to build (all = every device)"
         type: choice
@@ -533,6 +533,7 @@ jobs:
           path: |
             ${{ env.KERNEL_DIR }}/build.log
             ${{ env.KERNEL_DIR }}/out/.config
+            ${{ env.KERNEL_DIR }}/fs/namespace.c
           if-no-files-found: ignore
 
       - name: Package with AnyKernel3
