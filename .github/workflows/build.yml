@@ -169,18 +169,18 @@ jobs:
           D="$KERNEL_DIR/arch/arm64/configs/exynos9820-${DEVICE}_defconfig"
           [ -f "$D" ] || { echo "::error::$D missing on $KERNEL_BRANCH — skipping $DEVICE"; exit 1; }
 
-      - name: Download AOSP Clang
+      - name: Download Neutron Clang
         run: |
-          # Google's official AOSP Clang (same build that boots on the dipper builder). A kernel
-          # that compiles cleanly but bootloops is usually a toolchain codegen issue; Neutron
-          # Clang's custom optimizations can produce a non-booting arm64 kernel, so use AOSP's.
-          CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-release/clang-r547379.tar.gz"
-          mkdir -p "$HOME/clang"
-          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.gz "$CLANG_URL"
-          tar -C "$HOME/clang" -xzf /tmp/clang.tar.gz
-          rm -f /tmp/clang.tar.gz
-          echo "$HOME/clang/bin" >> "$GITHUB_PATH"
-          echo "TOOLCHAIN=$("$HOME/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
+          TC_URL="$(curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest \
+            | grep -o '"browser_download_url": *"[^"]*"' | head -n1 | cut -d '"' -f4)"
+          [ -n "$TC_URL" ] || { echo "Toolchain URL not found"; exit 1; }
+          mkdir -p "$KERNEL_DIR/clang"
+          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.zst "$TC_URL"
+          tar --zstd -C "$KERNEL_DIR/clang" -xf /tmp/clang.tar.zst
+          rm -f /tmp/clang.tar.zst
+          echo "$PWD/$KERNEL_DIR/clang/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN=$("$KERNEL_DIR/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
 
       - name: Generate kernel config
         working-directory: ${{ env.KERNEL_DIR }}
