@@ -1,0 +1,1 @@
+# exynos9820-origin-builder
