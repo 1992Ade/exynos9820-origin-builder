@@ -200,7 +200,12 @@ jobs:
           # BIT(n) vs literal notation, so the redefinition is harmless.
           # -Wno-error: this old 4.14 vendor tree (esp. the bcmdhd Wi-Fi driver) trips many
           # -Werror warnings under recent Clang; make them non-fatal instead of chasing each one.
-          sed -i '/^export KBUILD_CFLAGS/i KBUILD_CFLAGS += -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined -Wno-unused-but-set-global -Wno-unused-but-set-variable -Wno-error' Makefile 2>/dev/null || true
+          sed -i '/^export KBUILD_CFLAGS/i KBUILD_CFLAGS += -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined -Wno-unused-but-set-global -Wno-unused-but-set-variable -Wno-ignored-optimization-argument -Wno-error' Makefile 2>/dev/null || true
+          # The Broadcom Wi-Fi (bcmdhd) Makefiles add their OWN -Werror in DHDCFLAGS, which
+          # overrides the global -Wno-error and makes Clang-ignored flags like -fmerge-constants
+          # fatal. Strip -Werror from those Makefiles so their warnings are non-fatal too.
+          find drivers/net/wireless/broadcom -name Makefile -print0 2>/dev/null \
+            | xargs -0 -r sed -i 's/\([[:space:]]\)-Werror\([[:space:]]\)/\1\2/g' 2>/dev/null || true
 
       - name: Integrate OriginSU (replacing KernelSU-Next)
         working-directory: ${{ env.KERNEL_DIR }}
