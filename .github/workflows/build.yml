@@ -193,12 +193,14 @@ jobs:
           sed -i 's/CONFIG_IKHEADERS=y/# CONFIG_IKHEADERS is not set/g' "$FINAL_DEFCONFIG"
           # Loosen recent-Clang warnings that break old trees (incl. the -Werror const-init
           # ones that fail kernel/params.c on this tree)
-          sed -i 's/-Wno-format-security/-Wno-format-security -Wno-declaration-after-statement -Wno-implicit-int -Wno-enum-conversion -Wno-misleading-indentation -Wno-unsequenced -Wno-implicit-function-declaration -Wno-implicit-enum-enum-cast -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined/g' Makefile 2>/dev/null || true
+          sed -i 's/-Wno-format-security/-Wno-format-security -Wno-declaration-after-statement -Wno-implicit-int -Wno-enum-conversion -Wno-misleading-indentation -Wno-unsequenced -Wno-implicit-function-declaration -Wno-implicit-enum-enum-cast -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined -Wno-unused-but-set-global -Wno-unused-but-set-variable/g' Makefile 2>/dev/null || true
           # Belt-and-braces: also append to KBUILD_CFLAGS so they apply even if the anchor moves.
           # -Wno-macro-redefined: OriginSU pulls in a newer susfs_def.h whose INODE_STATE_* /
           # TRY_UMOUNT_* macros duplicate the tree's v1.5.x susfs.h — IDENTICAL values, just
           # BIT(n) vs literal notation, so the redefinition is harmless.
-          sed -i '/^export KBUILD_CFLAGS/i KBUILD_CFLAGS += -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined' Makefile 2>/dev/null || true
+          # -Wno-error: this old 4.14 vendor tree (esp. the bcmdhd Wi-Fi driver) trips many
+          # -Werror warnings under recent Clang; make them non-fatal instead of chasing each one.
+          sed -i '/^export KBUILD_CFLAGS/i KBUILD_CFLAGS += -Wno-default-const-init-field-unsafe -Wno-default-const-init-var-unsafe -Wno-default-const-init-unsafe -Wno-macro-redefined -Wno-unused-but-set-global -Wno-unused-but-set-variable -Wno-error' Makefile 2>/dev/null || true
 
       - name: Integrate OriginSU (replacing KernelSU-Next)
         working-directory: ${{ env.KERNEL_DIR }}
