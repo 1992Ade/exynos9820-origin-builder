@@ -27,6 +27,11 @@ on:
         type: choice
         options: [all, beyond0lte, beyond1lte, beyond2lte, beyondx, d1, d1x, d2s, d2x, f62]
         default: all
+      root:
+        description: "originsu = add OriginSU root; none = STOCK kernel (to test if the base branch boots at all)"
+        type: choice
+        options: [originsu, none]
+        default: originsu
       hook_mode:
         description: "susfs = root + SuSFS hiding (patched in); manual = root only, no SuSFS"
         type: choice
@@ -139,6 +144,7 @@ jobs:
       DEVICE: ${{ matrix.device }}
       ORIGINSU_TAG: ${{ needs.check.outputs.tag }}
       KERNEL_BRANCH: ${{ needs.check.outputs.branch }}
+      ROOT: ${{ github.event_name == 'workflow_dispatch' && inputs.root || 'originsu' }}
       HOOK_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.hook_mode || 'susfs' }}
       NONGKI: https://raw.githubusercontent.com/JackA1ltman/NonGKI_Kernel_Build_2nd/${{ needs.check.outputs.nongki_sha }}/Patches
       KPM: ${{ github.event_name == 'workflow_dispatch' && inputs.kpm || 'false' }}
@@ -163,18 +169,18 @@ jobs:
           D="$KERNEL_DIR/arch/arm64/configs/exynos9820-${DEVICE}_defconfig"
           [ -f "$D" ] || { echo "::error::$D missing on $KERNEL_BRANCH — skipping $DEVICE"; exit 1; }
 
-      - name: Download Neutron Clang
+      - name: Download AOSP Clang
         run: |
-          TC_URL="$(curl -fsSL --retry 5 --retry-all-errors -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://api.github.com/repos/Neutron-Toolchains/clang-build-catalogue/releases/latest \
-            | grep -o '"browser_download_url": *"[^"]*"' | head -n1 | cut -d '"' -f4)"
-          [ -n "$TC_URL" ] || { echo "Toolchain URL not found"; exit 1; }
-          mkdir -p "$KERNEL_DIR/clang"
-          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.zst "$TC_URL"
-          tar --zstd -C "$KERNEL_DIR/clang" -xf /tmp/clang.tar.zst
-          rm -f /tmp/clang.tar.zst
-          echo "$PWD/$KERNEL_DIR/clang/bin" >> "$GITHUB_PATH"
-          echo "TOOLCHAIN=$("$KERNEL_DIR/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
+          # Google's official AOSP Clang (same build that boots on the dipper builder). A kernel
+          # that compiles cleanly but bootloops is usually a toolchain codegen issue; Neutron
+          # Clang's custom optimizations can produce a non-booting arm64 kernel, so use AOSP's.
+          CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android16-release/clang-r547379.tar.gz"
+          mkdir -p "$HOME/clang"
+          curl -fL --retry 5 --retry-all-errors -o /tmp/clang.tar.gz "$CLANG_URL"
+          tar -C "$HOME/clang" -xzf /tmp/clang.tar.gz
+          rm -f /tmp/clang.tar.gz
+          echo "$HOME/clang/bin" >> "$GITHUB_PATH"
+          echo "TOOLCHAIN=$("$HOME/clang/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
 
       - name: Generate kernel config
         working-directory: ${{ env.KERNEL_DIR }}
@@ -214,6 +220,10 @@ jobs:
       - name: Integrate OriginSU (replacing KernelSU-Next)
         working-directory: ${{ env.KERNEL_DIR }}
         run: |
+          if [ "$ROOT" = "none" ]; then
+            echo "-- root=none: building the STOCK kernel (no OriginSU) to test if the base branch boots"
+            exit 0
+          fi
           # Start from a clean KernelSU (the FreeRunner tree may ship one in-tree)
           rm -rf KernelSU drivers/kernelsu
 
@@ -450,8 +460,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EXTRA_FEATURES: ${{ github.event_name == 'workflow_dispatch' && inputs.extra_features || 'true' }}
         run: |
-          if [ "$EXTRA_FEATURES" = "false" ]; then
-            echo "-- extra_features=false: building OriginSU only (no Baseband Guard / NoMount / Droidspaces)"
+          if [ "$ROOT" = "none" ] || [ "$EXTRA_FEATURES" = "false" ]; then
+            echo "-- skipping extra features (root=$ROOT, extra_features=$EXTRA_FEATURES)"
             exit 0
           fi
           ########## 1) Baseband Guard (vc-teahouse) ##########
