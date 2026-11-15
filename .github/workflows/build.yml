@@ -279,6 +279,13 @@ jobs:
             perl -0pi -e 's/[ \t]*#ifdef CONFIG_KSU[ \t]*\n(?:(?!#endif).)*?ksu_vfs_read_hook(?:(?!#endif).)*?\n[ \t]*#endif[ \t]*\n//gs' fs/read_write.c
             echo "-- stripped legacy ksu_vfs_read_hook from fs/read_write.c (OriginSU adds its own)"
           fi
+          # Same for the dev's legacy input hook (ksu_input_hook under CONFIG_KSU_SAFEMODE), which
+          # OriginSU also rejects. The tree also carries the compatible ksu_handle_input_handle_event
+          # under CONFIG_KSU, so strip only the SAFEMODE/ksu_input_hook blocks and keep that one.
+          if [ -f drivers/input/input.c ] && grep -q 'ksu_input_hook' drivers/input/input.c; then
+            perl -0pi -e 's/[ \t]*#ifdef CONFIG_KSU_SAFEMODE[ \t]*\n(?:(?!#endif).)*?ksu_input_hook(?:(?!#endif).)*?\n[ \t]*#endif[ \t]*\n//gs' drivers/input/input.c
+            echo "-- stripped legacy ksu_input_hook from drivers/input/input.c (kept the compatible one)"
+          fi
 
           # 4b) Apply the hook script. It is guarded per file (skips files that already carry a
           #     ksu_handle hook — the dev's exec/open/stat/input), so it only adds the hooks
