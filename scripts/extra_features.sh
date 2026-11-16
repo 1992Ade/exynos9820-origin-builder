@@ -50,6 +50,7 @@ apply_ds_patch() {
 [ -f net/netfilter/xt_qtaguid.c ] && apply_ds_patch "$DS/01.fix_kernel_panic_in_xt_qtaguid.patch" "xt_qtaguid panic fix"
 apply_ds_patch "$DS/02.fix_restore%20cgroup%20file%20prefix%20handling%20.patch" "cgroup prefix fix"
 
+# NOT CGROUP_NET_PRIO: this tree removed cgroup->id, netprio_cgroup.h no longer compiles.
 cat >> "$FRAG" <<'EOF'
 CONFIG_SYSVIPC=y
 CONFIG_POSIX_MQUEUE=y
@@ -66,7 +67,6 @@ CONFIG_CGROUP_DEVICE=y
 CONFIG_CGROUP_SCHED=y
 CONFIG_FAIR_GROUP_SCHED=y
 CONFIG_CGROUP_FREEZER=y
-CONFIG_CGROUP_NET_PRIO=y
 CONFIG_MEMCG=y
 CONFIG_CFS_BANDWIDTH=y
 CONFIG_CGROUP_PIDS=y
