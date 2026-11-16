@@ -125,7 +125,9 @@ jobs:
   build:
     needs: check
     if: needs.check.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    # Pinned: the official LLVM release binaries link against libxml2.so.2 (Ubuntu 24.04),
+    # newer runner images ship a libxml2 with another soname -> ld.lld fails to start.
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -152,7 +154,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y bc bison flex zip curl git libssl-dev libelf-dev zstd xz-utils \
-            python3 python-is-python3 cpio unzip
+            python3 python-is-python3 cpio unzip libxml2
 
       - name: Clone FreeRunner kernel (with its submodules)
         run: |
@@ -171,6 +173,10 @@ jobs:
             "https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_VERSION}/${F}.tar.xz"
           mkdir -p "$HOME/llvm" && tar -C "$HOME/llvm" --strip-components=1 -xf /tmp/llvm.tar.xz && rm -f /tmp/llvm.tar.xz
           echo "$HOME/llvm/bin" >> "$GITHUB_PATH"
+          # Fail here (not 10 min into the build) if a tool can't start (missing shared lib...)
+          for t in clang ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
+            "$HOME/llvm/bin/$t" --version >/dev/null || { echo "::error::$t does not run"; ldd "$HOME/llvm/bin/$t" | grep 'not found'; exit 1; }
+          done
           echo "TOOLCHAIN=$("$HOME/llvm/bin/clang" --version | head -n1)" >> "$GITHUB_ENV"
 
       - name: Kernel tweaks (no -dirty suffix)
