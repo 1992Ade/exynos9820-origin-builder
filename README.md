@@ -63,7 +63,7 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 
 | Device | Codename | Model | Status |
 |---|---|---|---|
-| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ Boots (v3.7 base, OriginSU + SuSFS + extras) |
+| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested**: boots (v3.9, OriginSU + SuSFS v2.3.0 + extras) |
 | Galaxy S10e | `beyond0lte` | SM-G970F | 🧪 Please test |
 | Galaxy S10 | `beyond1lte` | SM-G973F | 🧪 Please test |
 | Galaxy S10 5G | `beyondx` | SM-G977B | 🧪 Please test |
@@ -74,9 +74,15 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 | Galaxy F62 | `f62` | SM-E625F | 🧪 Please test |
 
 > ### 🧪 Community rebuild
-> Confirmed booting on the S10+ (FreeRunner v3.7 base): KernelSU-Next control build, and OriginSU + SuSFS + extras. The v3.9 base (`lineage-24.0`) still needs a test. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
+> **Galaxy S10+ (`beyond2lte`) is tested and boots** on FreeRunner v3.9 with OriginSU + SuSFS v2.3.0 + extras (Project Infinity-X). The other devices are built from the same source but not yet verified: please report. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
 
-**Requirement:** a ROM that runs the FreeRunner Exynos 9820 4.14 kernel (e.g. Project Infinity-X and other AOSP-based ROMs for these devices). Stock One UI is **not** supported.
+### 🧬 ROM compatibility
+
+This is a **LineageOS kernel**: the FreeRunner source is the LineageOS kernel for the Exynos 9820 devices (default branch `lineage-24.0`, i.e. the LineageOS 24 / Android 17 device tree), with FreeRunner's tweaks on top.
+
+- ✅ **LineageOS and LineageOS-based ROMs** for these devices — tested on **Project Infinity-X** (S10+).
+- ⚠️ ROMs on an older LineageOS base (e.g. 23.x / Android 16) should also work, but are untested: if one bootloops, rebuild with `kernel_branch = ksunext-qpr2` (FreeRunner v3.8-R2, Android 16 QPR2) and report it.
+- ❌ **Stock One UI and One UI-based ROMs are not supported** (different kernel and device tree).
 
 ---
 
