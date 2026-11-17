@@ -11,7 +11,7 @@ This repository automates the compilation of a custom **Linux 4.14** kernel for 
 
 > `LeDrew2017/android_kernel_samsung_exynos9820`, used by earlier versions of this builder, is a December 2024 snapshot of hiratazx's Yuki v3.0 tree — **not** FreeRunner. Its kernels did not boot on current ROMs.
 
-The upstream kernel ships with **KernelSU-Next**. This builder **replaces it with [OriginSU](https://github.com/samakshkambxj/OriginSU)** upgrades **SuSFS to v2.4.0** (FreeRunner ships v2.3.0), enables **TCP BBR**, and can add **Baseband Guard**, **NoMount** and **Droidspaces** (see [Included features](#-included-features)). Each build is packaged as a recovery-flashable `.zip` (TWRP) with LeDrew's AnyKernel, **one per device**.
+The upstream kernel ships with **KernelSU-Next**. This builder **replaces it with [OriginSU](https://github.com/samakshkambxj/OriginSU)**, upgrades **SuSFS to v2.4.0** (FreeRunner ships v2.3.0), enables **TCP BBR**, and can add **Baseband Guard**, **NoMount** and **Droidspaces** (see [Included features](#-included-features)). Each build is packaged as a recovery-flashable `.zip` (TWRP) with LeDrew's AnyKernel, **one per device**.
 
 **Fully automated:** a GitHub Actions workflow checks every week (Sunday) for a new OriginSU release and, when one is out **with its manager APK**, rebuilds every device and publishes a release automatically.
 
