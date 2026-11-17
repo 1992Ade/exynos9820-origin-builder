@@ -11,7 +11,7 @@ This repository automates the compilation of a custom **Linux 4.14** kernel for 
 
 > `LeDrew2017/android_kernel_samsung_exynos9820`, used by earlier versions of this builder, is a December 2024 snapshot of hiratazx's Yuki v3.0 tree — **not** FreeRunner. Its kernels did not boot on current ROMs.
 
-The upstream kernel ships with **KernelSU-Next**. This builder **replaces it with [OriginSU](https://github.com/samakshkambxj/OriginSU)** keeps the tree's **SuSFS v2.3.0**, and can add **Baseband Guard**, **NoMount** and **Droidspaces** (see [Included features](#-included-features)). Each build is packaged as a recovery-flashable `.zip` (TWRP) with LeDrew's AnyKernel, **one per device**.
+The upstream kernel ships with **KernelSU-Next**. This builder **replaces it with [OriginSU](https://github.com/samakshkambxj/OriginSU)** upgrades **SuSFS to v2.4.0** (FreeRunner ships v2.3.0), enables **TCP BBR**, and can add **Baseband Guard**, **NoMount** and **Droidspaces** (see [Included features](#-included-features)). Each build is packaged as a recovery-flashable `.zip` (TWRP) with LeDrew's AnyKernel, **one per device**.
 
 **Fully automated:** a GitHub Actions workflow checks every week (Sunday) for a new OriginSU release and, when one is out **with its manager APK**, rebuilds every device and publishes a release automatically.
 
@@ -32,7 +32,8 @@ Please support the original developer first. 🙏
 | | FreeRunner (original) | This builder |
 |---|---|---|
 | **Root** | KernelSU-Next / SukiSU | **OriginSU** `v4.3.0` |
-| **SuSFS** | `v2.3.0` (in-tree) | same (in-tree) |
+| **SuSFS** | `v2.3.0` (in-tree) | **`v2.4.0`** (upgraded; `v2.3.0` in-tree still selectable) |
+| **TCP congestion control** | BIC (default), CUBIC, Westwood, HTCP | **BBR (default)** + the same |
 | **Kernel base** | `lineage-24.0` (v3.9) | same |
 | **Toolchain** | clang 21, `make LLVM=1` | LLVM 21.1.8, `make LLVM=1` |
 | **Extra features** | — | **Baseband Guard · NoMount · Droidspaces** (optional) |
@@ -44,11 +45,12 @@ The point of this rebuild is **OriginSU** (+ the optional extra features). For K
 
 ## 🧩 Included Features
 
-On top of OriginSU (`extra_features` input, off by default until the base build is confirmed to boot):
+Always included on top of OriginSU: **SuSFS** and **TCP BBR**. Optional (`extra_features` input): Baseband Guard, NoMount, Droidspaces.
 
 | Feature | Upstream | What it does | Kernel config |
 |---|---|---|---|
-| **SuSFS `v2.3.0`** | [simonpunk](https://gitlab.com/simonpunk/susfs4ksu), integrated in-tree by FreeRunner | Root/mount hiding (`susfs` hook mode, always on in that mode) | `CONFIG_KSU_SUSFS_*` |
+| **SuSFS `v2.4.0`** | [simonpunk](https://gitlab.com/simonpunk/susfs4ksu), 4.14 port by [JackA1ltman](https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd) | Root/mount hiding (`susfs` hook mode). Replaces FreeRunner's in-tree v2.3.0 (`susfs_version = intree` to keep it) | `CONFIG_KSU_SUSFS_*` |
+| **TCP BBR** | Google (upstream Linux) | Built in and **default** TCP congestion control (FreeRunner: BIC). Mostly helps uploads, video calls and hotspot. Back to CUBIC: `sysctl -w net.ipv4.tcp_congestion_control=cubic` | `CONFIG_TCP_CONG_BBR=y`, `CONFIG_DEFAULT_TCP_CONG="bbr"` |
 | **Baseband Guard** | [vc-teahouse](https://github.com/vc-teahouse/Baseband-guard) | LSM that blocks writes to the modem/baseband partitions | `CONFIG_BBG=y` |
 | **NoMount** | [maxsteeel](https://github.com/maxsteeel/nomount) | Prevents unwanted mounts used for root detection | `CONFIG_NOMOUNT=y` |
 | **Droidspaces** | [ravindu644](https://github.com/ravindu644/Droidspaces-OSS) | Namespace/cgroup isolation to run isolated Android/Linux spaces | `CONFIG_NAMESPACES`, `CONFIG_USER_NS`, cgroups, netfilter… |
@@ -63,7 +65,7 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 
 | Device | Codename | Model | Status |
 |---|---|---|---|
-| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested**: boots (v3.9, OriginSU + SuSFS v2.3.0 + extras) |
+| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested**: boots (v3.9, OriginSU + SuSFS v2.3.0 + extras) — SuSFS v2.4.0 build: 🧪 testing |
 | Galaxy S10e | `beyond0lte` | SM-G970F | 🧪 Please test |
 | Galaxy S10 | `beyond1lte` | SM-G973F | 🧪 Please test |
 | Galaxy S10 5G | `beyondx` | SM-G977B | 🧪 Please test |
@@ -74,7 +76,7 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 | Galaxy F62 | `f62` | SM-E625F | 🧪 Please test |
 
 > ### 🧪 Community rebuild
-> **Galaxy S10+ (`beyond2lte`) is tested and boots** on FreeRunner v3.9 with OriginSU + SuSFS v2.3.0 + extras (Project Infinity-X). The other devices are built from the same source but not yet verified: please report. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
+> **Galaxy S10+ (`beyond2lte`) is tested and boots** on FreeRunner v3.9 with OriginSU + SuSFS v2.3.0 + extras (Project Infinity-X). The SuSFS v2.4.0 + BBR build is being tested; if it doesn't boot, rebuild with `susfs_version = intree`. The other devices are built from the same source but not yet verified: please report. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
 
 ### 🧬 ROM compatibility
 
@@ -94,7 +96,7 @@ Each release ships **one zip per device**, named:
 exynos9820-<codename>-OriginSU-<version>-<hook>-<date>.zip
 ```
 
-- **`-susfs-`** — SuSFS inline hook: root + SuSFS hiding (**recommended**).
+- **`-susfs-v2.4.0`** — SuSFS inline hook: root + SuSFS hiding (**recommended**). `-susfs-v2.3.0` = FreeRunner's in-tree SuSFS.
 - **`-manual-`** — manual hook only, no SuSFS: fallback if the SuSFS build doesn't boot.
 - **`-KSUNext-control-`** — FreeRunner unchanged (KernelSU-Next), only to validate the build chain.
 - **`-extras`** suffix — Baseband Guard + NoMount + Droidspaces included.
@@ -135,6 +137,8 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 2. **build** (one job per device, `fail-fast: false`)
    - Clones the FreeRunner branch (default `lineage-24.0` = v3.9) **with its submodules** and downloads the official **LLVM 21.1.8** release (FreeRunner is built with clang 21; the previous "Neutron latest" was a clang 24 dev snapshot).
    - `root = originsu`: removes KernelSU-Next, runs OriginSU's `setup.sh`, then [`scripts/originsu_compat_4.14.sh`](scripts/originsu_compat_4.14.sh) (4.14 compat for OriginSU) and [`scripts/originsu_hooks_4.14.sh`](scripts/originsu_hooks_4.14.sh), which converts the tree's KSU-Next hooks to what OriginSU expects (see the header of that script: the faccessat/stat argument type mismatch crashed init in SuSFS mode).
+   - SuSFS v2.4.0 ([`scripts/susfs_v2.4.sh`](scripts/susfs_v2.4.sh)): removes FreeRunner's in-tree v2.3.0 ([`strip_susfs.py`](scripts/strip_susfs.py), every `#if CONFIG_KSU_SUSFS*` block), applies JackA1ltman's 4.14 v2.4.0 patch hunk by hunk only where all the context matches ([`strict_apply.py`](scripts/strict_apply.py) — `patch --fuzz` put hunks in wrong places on this Samsung tree), then hand-ports the 20 hunks that don't match ([`susfs_v2.4_samsung_fixups.py`](scripts/susfs_v2.4_samsung_fixups.py): Samsung includes, `ida_alloc*` API, smaps). If the set of unmatched hunks ever changes, the build stops instead of guessing.
+   - TCP BBR enabled as default congestion control.
    - Optional **extra features** ([`scripts/extra_features.sh`](scripts/extra_features.sh)).
    - Configures like FreeRunner's `build.sh`: `exynos9820-<device>_defconfig` + a config fragment merged with `merge_config.sh`, then checks that every requested option really stuck.
    - Builds with `make LLVM=1` and packages `Image` with LeDrew's AnyKernel, locked to that device.
@@ -149,6 +153,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 | `device` | `all` | One device or all of them |
 | `root` | `originsu` | `originsu`, or `ksunext` = FreeRunner unchanged (control build) |
 | `hook_mode` | `susfs` | `susfs` = root + SuSFS; `manual` = root only |
+| `susfs_version` | `v2.4.0` | `v2.4.0` = upgraded SuSFS; `intree` = FreeRunner's v2.3.0 (susfs mode only) |
 | `extra_features` | `false` | Baseband Guard + NoMount + Droidspaces |
 | `kpm` | `false` | Enable `CONFIG_KPM` |
 | `publish` | `false` | Publish a GitHub Release (scheduled runs always publish) |
@@ -163,7 +168,7 @@ check  ──►  build (matrix: 9 devices)  ──►  release
 * **[OriginSU](https://github.com/samakshkambxj/OriginSU)** — For the kernel-based root solution used here.
 * **[KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)** — The root solution the original FreeRunner kernel ships with.
 * **[simonpunk](https://gitlab.com/simonpunk/susfs4ksu)** — For SuSFS.
-* **[JackA1ltman](https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd)** — Reference for the 4.14 SuSFS inline hook layout.
+* **[JackA1ltman](https://github.com/JackA1ltman/NonGKI_Kernel_Build_2nd)** — For the SuSFS v2.4.0 port to 4.14 and the non-GKI hook layout.
 * **[vc-teahouse](https://github.com/vc-teahouse/Baseband-guard)** — For Baseband Guard.
 * **[maxsteeel](https://github.com/maxsteeel/nomount)** — For NoMount.
 * **[ravindu644](https://github.com/ravindu644/Droidspaces-OSS)** — For Droidspaces.
