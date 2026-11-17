@@ -40,7 +40,7 @@ on:
         options: [originsu, ksunext]
         default: originsu
       hook_mode:
-        description: "susfs = root + SuSFS (in-tree v2.1.0); manual = root only, SuSFS disabled"
+        description: "susfs = root + SuSFS (v2.4.0 by default, or in-tree v2.3.0 via susfs_version); manual = root only, SuSFS disabled"
         type: choice
         options: [susfs, manual]
         default: susfs
