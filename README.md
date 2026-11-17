@@ -65,7 +65,7 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 
 | Device | Codename | Model | Status |
 |---|---|---|---|
-| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested**: boots (v3.9, OriginSU + SuSFS v2.3.0 + extras) — SuSFS v2.4.0 build: 🧪 testing |
+| Galaxy S10+ | `beyond2lte` | SM-G975F | ✅ **Tested**: boots (v3.9, OriginSU + SuSFS v2.4.0 + BBR + extras) |
 | Galaxy S10e | `beyond0lte` | SM-G970F | 🧪 Please test |
 | Galaxy S10 | `beyond1lte` | SM-G973F | 🧪 Please test |
 | Galaxy S10 5G | `beyondx` | SM-G977B | 🧪 Please test |
@@ -76,7 +76,7 @@ LeDrew2017's kernel supports the whole Exynos 9820/9825 line-up. This builder pr
 | Galaxy F62 | `f62` | SM-E625F | 🧪 Please test |
 
 > ### 🧪 Community rebuild
-> **Galaxy S10+ (`beyond2lte`) is tested and boots** on FreeRunner v3.9 with OriginSU + SuSFS v2.3.0 + extras (Project Infinity-X). The SuSFS v2.4.0 + BBR build is being tested; if it doesn't boot, rebuild with `susfs_version = intree`. The other devices are built from the same source but not yet verified: please report. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
+> **Galaxy S10+ (`beyond2lte`) is tested and boots** on FreeRunner v3.9 with OriginSU + SuSFS v2.4.0 + BBR + extras (Project Infinity-X). If a build doesn't boot on your device, try `susfs_version = intree` (FreeRunner's SuSFS v2.3.0). The other devices are built from the same source but not yet verified: please report. Test in this order on one device: **1)** `root = ksunext` (FreeRunner as-is: must boot, validates the CI) → **2)** `root = originsu`, `hook_mode = manual` → **3)** `hook_mode = susfs` → **4)** `extra_features = true`. The first step that bootloops tells you where the problem is. Back up your stock `boot` first.
 
 ### 🧬 ROM compatibility
 
