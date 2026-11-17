@@ -103,11 +103,17 @@ ${1}\x7d
 $1error = user_path_at(dfd, filename, lookup_flags, &path);
 #endif
 }s or die "stat.c: vfs_statx user_path_at not found\n";
-  # manual mode: fstat return hooks
+  # manual mode: fstat return hooks (skipped if the tree already has them, e.g. lineage-24.0)
   # (after cp_new_stat*: they patch st_size in the user buffer)
-  s{(SYSCALL_DEFINE2\(newfstat, unsigned int, fd, struct stat __user \*, statbuf\)\n\{\n\s*struct kstat stat;\n\s*int error = vfs_fstat\(fd, &stat\);\n\s*\n\s*if \(!error\)\n\s*error = cp_new_stat\(&stat, statbuf\);\n)}{$1#if defined(CONFIG_KSU) && !defined(CONFIG_KSU_SUSFS)\n\tksu_handle_newfstat_ret(&fd, &statbuf);\n#endif\n}s or die "stat.c: newfstat not found\n";
+  if (!/ksu_handle_newfstat_ret\(&fd/) {
+    s{(SYSCALL_DEFINE2\(newfstat, unsigned int, fd, struct stat __user \*, statbuf\)\n\{\n\s*struct kstat stat;\n\s*int error = vfs_fstat\(fd, &stat\);\n\s*\n\s*if \(!error\)\n\s*error = cp_new_stat\(&stat, statbuf\);\n)}{$1#if defined(CONFIG_KSU) && !defined(CONFIG_KSU_SUSFS)\n\tksu_handle_newfstat_ret(&fd, &statbuf);\n#endif\n}s or die "stat.c: newfstat not found\n";
   s{(SYSCALL_DEFINE2\(fstat64, unsigned long, fd, struct stat64 __user \*, statbuf\)\n\{\n\s*struct kstat stat;\n\s*int error = vfs_fstat\(fd, &stat\);\n\s*\n\s*if \(!error\)\n\s*error = cp_new_stat64\(&stat, statbuf\);\n)}{$1#if defined(CONFIG_KSU) && !defined(CONFIG_KSU_SUSFS)\n\tksu_handle_fstat64_ret(&fd, &statbuf);\n#endif\n}s;
+  }
 ' fs/stat.c
+
+# lineage-24.0 already has the fstat return hooks, guarded by a KSU-Next-only symbol:
+# in OriginSU they only exist in manual mode.
+sed -i 's/#if defined(CONFIG_KSU) \&\& !defined(CONFIG_KSU_KPROBES_KSUD)/#if defined(CONFIG_KSU) \&\& !defined(CONFIG_KSU_SUSFS)/' fs/stat.c
 
 ########## fs/read_write.c (init.rc hook: legacy bool -> OriginSU static key) ##########
 need 'ksu_vfs_read_hook' fs/read_write.c
