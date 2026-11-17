@@ -1,13 +1,13 @@
 name: Build Exynos 9820 Kernels (FreeRunner base) with OriginSU
 
-# Kernel: the REAL FreeRunnerKernel source, i.e. ProjectMatrixx-exynos9820/android_kernel_samsung_exynos9820
-# (LeDrew2017/FreeRunnerKernel's build.sh and release notes point there). Linux 4.14, Galaxy S10 /
-# Note10 / F62. The current branch (ksunext-qpr2, FreeRunner v3.7-R3) ships KernelSU-Next
-# (sidex15 legacy-susfs-v2, git submodule) + SuSFS v2.1.0 already integrated in fs/.
+# Kernel: the REAL FreeRunnerKernel source, Project-Matrixx-New/android_kernel_samsung_exynos9820
+# (named in LeDrew2017/FreeRunnerKernel's release notes). Linux 4.14, Galaxy S10 / Note10 / F62.
+# Branch lineage-24.0 = FreeRunner v3.9 (Nov 2026: clone3 / CAP_CHECKPOINT_RESTORE backports; the
+# defconfig still says v3.8-R2 until the dev pushes the bump). It ships KernelSU-Next (git
+# submodule) + SuSFS v2.3.0 already integrated in fs/.
 #
 # NOTE: LeDrew2017/android_kernel_samsung_exynos9820 (used before) is a Dec-2024 mirror of
-# hiratazx's Yuki v3.0 tree, NOT FreeRunner — it does not match current ROMs, which is why even
-# its stock build did not boot.
+# hiratazx's Yuki v3.0 tree, NOT FreeRunner. ProjectMatrixx-exynos9820 is the old org (stops at v3.7).
 #
 # Build is done the way FreeRunner builds it: `make LLVM=1` with clang 21 (official LLVM 21.1.8
 # release), no GNU binutils, no CROSS_COMPILE, config fragments merged with merge_config.sh.
@@ -26,9 +26,9 @@ on:
         required: false
         default: ""
       kernel_branch:
-        description: "FreeRunner kernel branch (ProjectMatrixx-exynos9820/android_kernel_samsung_exynos9820)"
+        description: "FreeRunner kernel branch (Project-Matrixx-New/android_kernel_samsung_exynos9820)"
         required: false
-        default: "ksunext-qpr2"
+        default: "lineage-24.0"
       device:
         description: "Device to build (all = every device)"
         type: choice
@@ -69,7 +69,7 @@ defaults:
     shell: bash
 
 env:
-  KERNEL_REPO: ProjectMatrixx-exynos9820/android_kernel_samsung_exynos9820
+  KERNEL_REPO: Project-Matrixx-New/android_kernel_samsung_exynos9820
   KERNEL_DIR: kernel
   AK3_REPO: https://github.com/LeDrew2017/Anykernel
   LLVM_VERSION: "21.1.8"
@@ -93,7 +93,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BRANCH="${{ inputs.kernel_branch }}"; BRANCH="${BRANCH:-ksunext-qpr2}"
+          BRANCH="${{ inputs.kernel_branch }}"; BRANCH="${BRANCH:-lineage-24.0}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
           DEV="${{ inputs.device }}"
@@ -301,11 +301,23 @@ jobs:
             echo "TOOLCHAIN=\"$TOOLCHAIN\""
           } > "dist/info-${DEVICE}.txt"
 
-      - name: Upload artifacts
+      # GitHub always wraps an artifact in a zip on download. The flashable zip gets its own
+      # artifact: download it, unzip it once, and flash the zip found inside (has META-INF).
+      - name: Upload flashable zip
         uses: actions/upload-artifact@v4
         with:
-          name: exynos9820-${{ matrix.device }}
-          path: dist/*
+          name: FLASH-unzip-first-${{ matrix.device }}
+          path: dist/*.zip
+          compression-level: 0
+
+      - name: Upload checksums, config, info
+        uses: actions/upload-artifact@v4
+        with:
+          name: info-${{ matrix.device }}
+          path: |
+            dist/*.sha256
+            dist/config-*.txt
+            dist/info-*.txt
 
   # ------------------------------------------------------------------
   # 3) Publish the GitHub Release
@@ -327,7 +339,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          pattern: exynos9820-*
+          pattern: "{FLASH-unzip-first-*,info-*}"
           merge-multiple: true
 
       - name: Write release notes
@@ -351,7 +363,7 @@ jobs:
           |---|---|
           | OriginSU | [${ORIGINSU_TAG}](https://github.com/samakshkambxj/OriginSU/releases/tag/${ORIGINSU_TAG}) (kernel + manager) |
           | SuSFS | \`${SUSFS_VERSION:-n/a}\` (FreeRunner in-tree) |
-          | Kernel | FreeRunner \`${KERNEL_BRANCH}\` @ [\`${KERNEL_COMMIT}\`](https://github.com/ProjectMatrixx-exynos9820/android_kernel_samsung_exynos9820/commit/${KERNEL_COMMIT}) |
+          | Kernel | FreeRunner \`${KERNEL_BRANCH}\` @ [\`${KERNEL_COMMIT}\`](https://github.com/Project-Matrixx-New/android_kernel_samsung_exynos9820/commit/${KERNEL_COMMIT}) |
           | Kernel version | \`${KERNEL_RELEASE}\` |
           | Toolchain | ${TOOLCHAIN} |
           | Build date | $(date -u +%Y-%m-%d) |
