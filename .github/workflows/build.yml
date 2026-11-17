@@ -44,6 +44,11 @@ on:
         type: choice
         options: [susfs, manual]
         default: susfs
+      susfs_version:
+        description: "SuSFS (susfs mode only): v2.4.0 = upgraded (JackA1ltman 4.14 port), intree = FreeRunner's v2.3.0"
+        type: choice
+        options: [v2.4.0, intree]
+        default: v2.4.0
       extra_features:
         description: "Add Baseband Guard + NoMount + Droidspaces"
         type: boolean
@@ -141,6 +146,7 @@ jobs:
       KERNEL_BRANCH: ${{ needs.check.outputs.branch }}
       ROOT: ${{ github.event_name == 'workflow_dispatch' && inputs.root || 'originsu' }}
       HOOK_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.hook_mode || 'susfs' }}
+      SUSFS_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.susfs_version || 'v2.4.0' }}
       EXTRA_FEATURES: ${{ github.event_name == 'workflow_dispatch' && inputs.extra_features || 'false' }}
       KPM: ${{ github.event_name == 'workflow_dispatch' && inputs.kpm || 'false' }}
 
@@ -184,6 +190,15 @@ jobs:
         run: |
           sed -i "s/printf '%s' -dirty/:/g" scripts/setlocalversion 2>/dev/null || true
           : > "$RUNNER_TEMP/builder.config"     # config fragment filled by the next steps
+          # TCP BBR (Google): built in and default congestion control. The stock defconfig only
+          # has BIC (default)/CUBIC/Westwood/HTCP. CUBIC stays available:
+          #   sysctl -w net.ipv4.tcp_congestion_control=cubic
+          cat >> "$RUNNER_TEMP/builder.config" <<'EOF'
+          CONFIG_TCP_CONG_BBR=y
+          CONFIG_DEFAULT_BBR=y
+          CONFIG_DEFAULT_TCP_CONG="bbr"
+          EOF
+          sed -i 's/^ *//' "$RUNNER_TEMP/builder.config"
           echo "FRAG=$RUNNER_TEMP/builder.config" >> "$GITHUB_ENV"
 
       - name: Integrate OriginSU (replacing KernelSU-Next)
@@ -192,6 +207,12 @@ jobs:
         run: |
           # 1) Drop KSU-Next (submodule) and set up OriginSU (./KernelSU + drivers/kernelsu symlink)
           rm -rf KernelSU-Next KernelSU drivers/kernelsu
+
+          # 1b) Optional SuSFS upgrade (in-tree v2.3.0 -> v2.4.0), before OriginSU and the hooks
+          if [ "$HOOK_MODE" = "susfs" ] && [ "$SUSFS_VERSION" = "v2.4.0" ]; then
+            bash "$GITHUB_WORKSPACE/builder/scripts/susfs_v2.4.sh" "$GITHUB_WORKSPACE/builder/scripts"
+          fi
+
           curl -LSs --fail --retry 3 https://raw.githubusercontent.com/samakshkambxj/OriginSU/main/kernel/setup.sh \
             | bash -s "$ORIGINSU_TAG"
           [ -e drivers/kernelsu/Kconfig ] || { echo "::error::drivers/kernelsu missing after setup.sh"; exit 1; }
@@ -284,6 +305,9 @@ jobs:
             d2s) MODEL="Galaxy Note10+";; d2x) MODEL="Galaxy Note10+ 5G";; f62) MODEL="Galaxy F62";; *) MODEL="$DEVICE";;
           esac
           if [ "$ROOT" = "originsu" ]; then FLAVOR="OriginSU-${ORIGINSU_TAG}-${HOOK_MODE}"; else FLAVOR="KSUNext-control"; fi
+          if [ "$ROOT" = "originsu" ] && [ "$HOOK_MODE" = "susfs" ]; then
+            FLAVOR="${FLAVOR}-$(grep -m1 '#define SUSFS_VERSION' "$KERNEL_DIR/include/linux/susfs.h" | cut -d'"' -f2)"
+          fi
           sed -i -E '/^device\.name[0-9]+=/d' "$AK"
           sed -i -E "s/^do\.devicecheck=.*/do.devicecheck=1\ndevice.name1=${DEVICE}/" "$AK"
           sed -i -E "s|^kernel\.string=.*|kernel.string=FreeRunner ${MODEL} (${DEVICE}) — ${FLAVOR}|" "$AK"
