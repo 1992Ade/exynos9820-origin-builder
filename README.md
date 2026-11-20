@@ -22,7 +22,6 @@ This repository automates the compilation of a custom **Linux 4.14** kernel for 
 
 The upstream kernel ships with **KernelSU-Next**. This builder **replaces it with [OriginSU v4.3.0](https://github.com/KazeSU/KazeSU/releases/tag/v4.3.0)**, upgrades **SuSFS to v2.4.0** (FreeRunner ships v2.3.0), enables **TCP BBR + fq**, and can add **Baseband Guard**, **NoMount** and **Droidspaces** (see [Included features](#-included-features)). Each build is packaged as a recovery-flashable `.zip` (TWRP) with LeDrew's AnyKernel, **one per device**.
 
-The XDA thread text (BBCode, ready to paste) is kept in [`docs/XDA_POST.txt`](docs/XDA_POST.txt).
 
 **No longer maintained:** the weekly check was removed and no new builds are planned here. The workflow can still be run by hand (OriginSU `v4.3.0`), but future kernels are expected from [FreeRunner](https://github.com/LeDrew2017/FreeRunnerKernel/releases).
 
