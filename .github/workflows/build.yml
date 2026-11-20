@@ -15,16 +15,20 @@ name: Build Exynos 9820 Kernels (FreeRunner base) with OriginSU
 # root=ksunext builds FreeRunner as-is (control build: it MUST boot, otherwise the problem is the
 # toolchain / packaging, not OriginSU). root=originsu replaces KSU-Next by OriginSU and adapts the
 # tree's KSU-Next hooks with scripts/originsu_hooks_4.14.sh (see that file for why).
+#
+# FINAL BUILDER — no longer maintained. OriginSU is discontinued (it became KazeSU,
+# https://github.com/KazeSU/KazeSU) and this builder is frozen on the last OriginSU release, v4.3.0
+# (tag v4.3.0 in the KazeSU repo, GitHub release "legacy-v4.3.0"). The FreeRunner developer
+# (LeDrew2017, https://github.com/LeDrew2017/FreeRunnerKernel) is taking development back and is
+# expected to ship future builds with KazeSU and a newer kernel. No scheduled builds any more.
 
 on:
-  schedule:
-    - cron: "43 4 * * 0"   # Sunday 04:43 UTC
   workflow_dispatch:
     inputs:
       originsu_ref:
-        description: "OriginSU tag to build (empty = latest release)"
+        description: "OriginSU tag to build (last OriginSU release: v4.3.0)"
         required: false
-        default: ""
+        default: "v4.3.0"
       kernel_branch:
         description: "FreeRunner kernel branch (Project-Matrixx-New/android_kernel_samsung_exynos9820)"
         required: false
@@ -83,7 +87,7 @@ env:
 
 jobs:
   # ------------------------------------------------------------------
-  # 1) Do we need to build? (new OriginSU version, with its manager APK)
+  # 1) What to build (manual runs only)
   # ------------------------------------------------------------------
   check:
     runs-on: ubuntu-latest
@@ -93,7 +97,7 @@ jobs:
       branch: ${{ steps.ver.outputs.branch }}
       devices: ${{ steps.ver.outputs.devices }}
     steps:
-      - name: Compare OriginSU latest release with our releases
+      - name: OriginSU release (with its manager APK)
         id: ver
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -108,21 +112,18 @@ jobs:
             echo "devices=[\"$DEV\"]" >> "$GITHUB_OUTPUT"
           fi
 
-          TAG="${{ inputs.originsu_ref }}"
-          [ -n "$TAG" ] || TAG=$(gh release view --repo samakshkambxj/OriginSU --json tagName -q .tagName 2>/dev/null || true)
-          [ -n "$TAG" ] || { echo "::error::Could not determine the OriginSU version"; exit 1; }
+          TAG="${{ inputs.originsu_ref }}"; TAG="${TAG:-v4.3.0}"
+          # OriginSU tags only (v4.x). samakshkambxj/OriginSU now redirects to KazeSU/KazeSU,
+          # where KazeSU v1.x lives too: never pick its "latest" release.
+          case "$TAG" in
+            v4.*) ;;
+            *) echo "::error::$TAG is not an OriginSU tag (expected v4.x, e.g. v4.3.0)"; exit 1 ;;
+          esac
           echo "OriginSU version: $TAG"; echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-          APKS=$(gh release view "$TAG" --repo samakshkambxj/OriginSU --json assets -q '.assets[].name' 2>/dev/null | grep -E '\.apk$' || true)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual run -> forced build"; echo "build=true" >> "$GITHUB_OUTPUT"
-          elif [ -z "$APKS" ]; then
-            echo "::warning::OriginSU release $TAG has no manager APK yet -> no build"; echo "build=false" >> "$GITHUB_OUTPUT"
-          elif gh release view "originsu-$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release originsu-$TAG already published -> nothing to do"; echo "build=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "New version detected -> build"; echo "build=true" >> "$GITHUB_OUTPUT"
-          fi
+          APKS=$(gh release view "$TAG" --repo KazeSU/KazeSU --json assets -q '.assets[].name' 2>/dev/null | grep -E '\.apk$' || true)
+          [ -n "$APKS" ] || echo "::warning::OriginSU release $TAG: manager APK not found"
+          echo "Manual run -> build"; echo "build=true" >> "$GITHUB_OUTPUT"
 
   # ------------------------------------------------------------------
   # 2) Build (one job per device)
@@ -193,10 +194,18 @@ jobs:
           # TCP BBR (Google): built in and default congestion control. The stock defconfig only
           # has BIC (default)/CUBIC/Westwood/HTCP. CUBIC stays available:
           #   sysctl -w net.ipv4.tcp_congestion_control=cubic
+          # + fq as default qdisc: fq is built in the stock defconfig but unused (default qdisc =
+          # pfifo_fast, NET_SCH_DEFAULT off). On fq, BBR's rate (sk_pacing_rate) is applied by the
+          # qdisc and the socket is marked SK_PACING_FQ, so TCP skips its own per-socket hrtimer
+          # pacing (4.13+ fallback): cheaper and more precise.
           cat >> "$RUNNER_TEMP/builder.config" <<'EOF'
           CONFIG_TCP_CONG_BBR=y
           CONFIG_DEFAULT_BBR=y
           CONFIG_DEFAULT_TCP_CONG="bbr"
+          CONFIG_NET_SCH_FQ=y
+          CONFIG_NET_SCH_DEFAULT=y
+          CONFIG_DEFAULT_FQ=y
+          CONFIG_DEFAULT_NET_SCH="fq"
           EOF
           sed -i 's/^ *//' "$RUNNER_TEMP/builder.config"
           echo "FRAG=$RUNNER_TEMP/builder.config" >> "$GITHUB_ENV"
@@ -213,9 +222,14 @@ jobs:
             bash "$GITHUB_WORKSPACE/builder/scripts/susfs_v2.4.sh" "$GITHUB_WORKSPACE/builder/scripts"
           fi
 
-          curl -LSs --fail --retry 3 https://raw.githubusercontent.com/samakshkambxj/OriginSU/main/kernel/setup.sh \
+          # samakshkambxj/OriginSU now redirects to KazeSU/KazeSU, whose main branch is KazeSU:
+          # take setup.sh from the OriginSU tag itself and clone the KazeSU URL directly.
+          curl -LSs --fail --retry 3 "https://raw.githubusercontent.com/KazeSU/KazeSU/$ORIGINSU_TAG/kernel/setup.sh" \
+            | sed 's|^REPO_URL=.*|REPO_URL="https://github.com/KazeSU/KazeSU"|' \
             | bash -s "$ORIGINSU_TAG"
           [ -e drivers/kernelsu/Kconfig ] || { echo "::error::drivers/kernelsu missing after setup.sh"; exit 1; }
+          [ "$(git -C KernelSU describe --tags --exact-match 2>/dev/null)" = "$ORIGINSU_TAG" ] \
+            || { echo "::error::OriginSU is not at $ORIGINSU_TAG"; git -C KernelSU log -1 --oneline; exit 1; }
           sed -i 's/\$(KSU_COMMIT_SHA)-dirty/$(KSU_COMMIT_SHA)/' KernelSU/kernel/Kbuild 2>/dev/null || true
 
           # 2) OriginSU source compat for 4.14 + adapt the tree's KSU-Next hooks to OriginSU
@@ -268,6 +282,10 @@ jobs:
           fi
           echo "--- effective root configs ---"
           grep -E '^(# )?CONFIG_(KSU|KPM|BBG|NOMOUNT)' out/.config || true
+          echo "--- TCP congestion control / default qdisc ---"
+          grep -E '^CONFIG_(TCP_CONG_BBR|DEFAULT_TCP_CONG|NET_SCH_FQ|NET_SCH_DEFAULT|DEFAULT_NET_SCH)=' out/.config || true
+          grep -q '^CONFIG_DEFAULT_TCP_CONG="bbr"' out/.config || { echo "::error::BBR is not the default TCP congestion control"; exit 1; }
+          grep -q '^CONFIG_DEFAULT_NET_SCH="fq"' out/.config  || { echo "::error::fq is not the default qdisc"; exit 1; }
 
       - name: Compile the kernel
         working-directory: ${{ env.KERNEL_DIR }}
@@ -349,8 +367,7 @@ jobs:
   release:
     needs: [check, build]
     if: >-
-      !cancelled() && needs.check.outputs.build == 'true' &&
-      (github.event_name == 'schedule' || inputs.publish)
+      !cancelled() && needs.check.outputs.build == 'true' && inputs.publish
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -385,7 +402,8 @@ jobs:
 
           | | |
           |---|---|
-          | OriginSU | [${ORIGINSU_TAG}](https://github.com/samakshkambxj/OriginSU/releases/tag/${ORIGINSU_TAG}) (kernel + manager) |
+          | OriginSU | [${ORIGINSU_TAG}](https://github.com/KazeSU/KazeSU/releases/tag/${ORIGINSU_TAG}) (final OriginSU release, kernel + manager, now hosted by KazeSU as "legacy-${ORIGINSU_TAG}") |
+          | TCP | BBR + fq (default) |
           | SuSFS | \`${SUSFS_VERSION:-n/a}\` (FreeRunner in-tree) |
           | Kernel | FreeRunner \`${KERNEL_BRANCH}\` @ [\`${KERNEL_COMMIT}\`](https://github.com/Project-Matrixx-New/android_kernel_samsung_exynos9820/commit/${KERNEL_COMMIT}) |
           | Kernel version | \`${KERNEL_RELEASE}\` |
@@ -401,7 +419,11 @@ jobs:
           > ⚠️ **Community rebuild — test before daily use.** Back up your stock \`boot\` first.
 
           Flash from TWRP, then install the OriginSU manager from the
-          [OriginSU release page](https://github.com/samakshkambxj/OriginSU/releases/tag/${ORIGINSU_TAG}).
+          [legacy-${ORIGINSU_TAG} release page](https://github.com/KazeSU/KazeSU/releases/tag/${ORIGINSU_TAG})
+          (OriginSU manager, not the KazeSU v1.x one).
+
+          > **Last build of this repository.** Future kernels (KazeSU, newer kernel) are expected from the
+          > FreeRunner developer: [LeDrew2017/FreeRunnerKernel](https://github.com/LeDrew2017/FreeRunnerKernel/releases).
           EOF
           sed -i 's/^          //' notes.md
 
