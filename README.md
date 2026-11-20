@@ -10,7 +10,7 @@
 > - **Releases:** [LeDrew2017/FreeRunnerKernel](https://github.com/LeDrew2017/FreeRunnerKernel/releases)
 > - **Kernel source:** [Project-Matrixx-New/android_kernel_samsung_exynos9820](https://github.com/Project-Matrixx-New/android_kernel_samsung_exynos9820)
 >
-> The existing OriginSU builds stay available here. The OriginSU `v4.3.0` manager remains in the KazeSU repository ([tag `v4.3.0`, release "legacy-v4.3.0"](https://github.com/KazeSU/KazeSU/releases/tag/v4.3.0)).
+> The existing OriginSU builds stay available here. The OriginSU `v4.3.0` manager remains in the KazeSU repository ([tag `v4.3.0`, release "legacy-v4.3.0"](https://github.com/KazeSU/KazeSU/releases/tag/v4.3.0)). Note that KazeSU `v1.0.0` works with this kernel too but new root hiding method is not implemented.
 
 > **Your warranty is now void.** Flashing a custom kernel can brick your device. You are responsible for what you flash. Always keep a backup of your stock `boot` (and `vbmeta`) partitions.
 
