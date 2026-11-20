@@ -27,6 +27,13 @@ curl -LSs --fail --retry 3 "${AUTH[@]}" \
   "https://raw.githubusercontent.com/maxsteeel/nomount/refs/heads/master/kernel/setup.sh" | bash -s "v2.3.0-720" \
   || { echo "::error::NoMount setup failed"; exit 1; }
 echo "CONFIG_NOMOUNT=y" >> "$FRAG"
+# OriginSU v4.3.0 drives NoMount itself (OriginMount screen -> "nomount" mode): ksud probes the
+# built-in driver first and needs driver API >= 22 (NoMount v2.2.0+). v2.3.0 reports API 23 with
+# the same wire structures. Users must not install the upstream NoMount module zip on top.
+NM_API="$(sed -n 's/^#define NOMOUNT_BASE_VERSION "\([0-9]*\)".*/\1/p' fs/nomount/nomount.h 2>/dev/null)"
+echo "-- NoMount driver API: ${NM_API:-unknown}"
+[ -n "$NM_API" ] && [ "$NM_API" -ge 22 ] \
+  || { echo "::error::NoMount API ${NM_API:-unknown} < 22: OriginSU v4.3.0 would refuse the driver"; exit 1; }
 
 ########## 3) Droidspaces (ravindu644) ##########
 echo "== Droidspaces =="
